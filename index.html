@@ -6,18 +6,18 @@
   <title>Hatch Control</title>
   <style>
     :root{
-      color-scheme:dark;
-      --bg:#0b1014;
-      --panel:#121920;
-      --panel2:#18222b;
-      --line:#293846;
-      --text:#e7edf2;
-      --muted:#8fa0af;
-      --blue:#43b7ff;
-      --green:#38d996;
-      --red:#ff5f74;
-      --yellow:#ffd166;
-      --shadow:0 24px 90px rgba(0,0,0,.42);
+      color-scheme:light;
+      --bg:#f5f4f2;
+      --panel:#ffffff;
+      --panel2:#f2f2f1;
+      --line:#e5e1dc;
+      --text:#171717;
+      --muted:#6d6a66;
+      --red:#d9001b;
+      --red2:#990014;
+      --green:#15803d;
+      --yellow:#b7791f;
+      --shadow:0 24px 70px rgba(28,22,20,.16);
     }
     *{box-sizing:border-box}
     body{
@@ -25,8 +25,8 @@
       min-height:100vh;
       font-family:Inter,Segoe UI,Arial,sans-serif;
       background:
-        linear-gradient(180deg,rgba(67,183,255,.08),transparent 34%),
-        radial-gradient(circle at 18% 16%,rgba(56,217,150,.11),transparent 30%),
+        linear-gradient(180deg,rgba(217,0,27,.08),transparent 42%),
+        radial-gradient(circle at 16% 18%,rgba(217,0,27,.1),transparent 28%),
         var(--bg);
       color:var(--text);
       display:grid;
@@ -35,7 +35,7 @@
     }
     .shell{width:min(460px,100%)}
     .brand{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-    .brand h1{font-size:18px;letter-spacing:.02em;margin:0}
+    .brand h1{font-size:24px;letter-spacing:-.02em;margin:0;color:var(--red);font-weight:900;font-style:italic}
     .status{
       display:inline-flex;
       align-items:center;
@@ -45,15 +45,15 @@
       padding:6px 10px;
       color:var(--muted);
       font-size:12px;
-      background:rgba(18,25,32,.72);
+      background:rgba(255,255,255,.82);
     }
     .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow)}
     .dot.ok{background:var(--green)}
     .dot.err{background:var(--red)}
     .card{
-      background:linear-gradient(180deg,rgba(255,255,255,.035),transparent),var(--panel);
+      background:var(--panel);
       border:1px solid var(--line);
-      border-radius:8px;
+      border-radius:18px;
       box-shadow:var(--shadow);
       overflow:hidden;
     }
@@ -74,7 +74,7 @@
       font-size:14px;
       outline:none;
     }
-    input:focus{border-color:rgba(67,183,255,.7);box-shadow:0 0 0 3px rgba(67,183,255,.14)}
+    input:focus{border-color:rgba(217,0,27,.58);box-shadow:0 0 0 4px rgba(217,0,27,.1)}
     button{
       height:46px;
       border:1px solid var(--line);
@@ -85,12 +85,12 @@
       cursor:pointer;
       transition:transform .12s ease,border-color .12s ease,background .12s ease;
     }
-    button:hover:not(:disabled){transform:translateY(-1px);border-color:#4d6578}
+    button:hover:not(:disabled){transform:translateY(-1px);border-color:rgba(217,0,27,.42)}
     button:disabled{opacity:.55;cursor:not-allowed}
-    .primary{width:100%;margin-top:16px;border-color:rgba(67,183,255,.45);background:rgba(67,183,255,.14);color:#bfe8ff}
+    .primary{width:100%;margin-top:16px;border-color:var(--red);background:var(--red);color:#fff}
     .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .open{border-color:rgba(56,217,150,.48);background:rgba(56,217,150,.13);color:#bff8dd}
-    .close{border-color:rgba(255,95,116,.48);background:rgba(255,95,116,.13);color:#ffd0d7}
+    .open{border-color:var(--red);background:var(--red);color:#fff}
+    .close{border-color:rgba(217,0,27,.28);background:#fff;color:var(--red)}
     .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
     .user{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .hatch-state{
@@ -99,18 +99,18 @@
       justify-content:space-between;
       gap:12px;
       border:1px solid var(--line);
-      border-radius:6px;
-      background:rgba(24,34,43,.7);
+      border-radius:12px;
+      background:#faf8f6;
       padding:12px;
       margin-bottom:14px;
     }
     .hatch-state span:first-child{font-size:12px;color:var(--muted)}
     .hatch-state strong{font-size:16px}
-    .hatch-state.open strong{color:var(--green)}
-    .hatch-state.closed strong{color:var(--red)}
+    .hatch-state.open strong{color:var(--red)}
+    .hatch-state.closed strong{color:var(--muted)}
     .hatch-state.moving strong{color:var(--yellow)}
     .hatch-state.unknown strong{color:var(--yellow)}
-    .linkbtn{height:34px;padding:0 12px;font-size:12px;background:transparent}
+    .linkbtn{height:34px;padding:0 12px;font-size:12px;background:#fff;color:var(--red);border-color:rgba(217,0,27,.28)}
     .message{min-height:20px;margin-top:12px;font-size:13px;color:var(--muted)}
     .message.ok{color:var(--green)}
     .message.err{color:var(--red)}
