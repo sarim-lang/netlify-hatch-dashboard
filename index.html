@@ -93,6 +93,22 @@
     .close{border-color:rgba(255,95,116,.48);background:rgba(255,95,116,.13);color:#ffd0d7}
     .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
     .user{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .hatch-state{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border:1px solid var(--line);
+      border-radius:6px;
+      background:rgba(24,34,43,.7);
+      padding:12px;
+      margin-bottom:14px;
+    }
+    .hatch-state span:first-child{font-size:12px;color:var(--muted)}
+    .hatch-state strong{font-size:16px}
+    .hatch-state.open strong{color:var(--green)}
+    .hatch-state.closed strong{color:var(--red)}
+    .hatch-state.unknown strong{color:var(--yellow)}
     .linkbtn{height:34px;padding:0 12px;font-size:12px;background:transparent}
     .message{min-height:20px;margin-top:12px;font-size:13px;color:var(--muted)}
     .message.ok{color:var(--green)}
@@ -135,10 +151,14 @@
         <div class="bar">
           <div>
             <div class="eyebrow">Hatch Control</div>
-          <div class="user" id="session-user">Authenticated</div>
-          <div class="user" id="session-timer">Session: --s</div>
+            <div class="user" id="session-user">Authenticated</div>
+            <div class="user" id="session-timer">Session: --s</div>
           </div>
           <button class="linkbtn" id="logout-btn" type="button">Logout</button>
+        </div>
+        <div class="hatch-state unknown" id="hatch-state">
+          <span>Current Hatch Status</span>
+          <strong id="hatch-status">Checking...</strong>
         </div>
         <div class="controls">
           <button class="open" id="open-btn" type="button">Open Hatch</button>
@@ -185,6 +205,7 @@
       $('session-user').textContent=session&&session.user?`Logged in as ${session.user}`:'Authenticated';
       startSessionTimer(session);
       setState('Ready','ok');
+      loadHatchStatus();
     }
     function stopSessionTimer(){
       if(sessionTimer){clearInterval(sessionTimer);sessionTimer=null;}
@@ -248,6 +269,30 @@
         setState('Offline','err');
       }
     }
+    function renderHatchStatus(value){
+      const box=$('hatch-state');
+      const label=$('hatch-status');
+      const normalized=typeof value==='string'?value.toLowerCase():value;
+      let text='Unknown', cls='unknown';
+      if(normalized===1||normalized===true||normalized==='open'||normalized==='opened'){
+        text='Open';cls='open';
+      }else if(normalized===0||normalized===2||normalized===false||normalized==='closed'||normalized==='close'){
+        text='Closed';cls='closed';
+      }else if(value!==undefined&&value!==null){
+        text=String(value);
+      }
+      box.className=`hatch-state ${cls}`;
+      label.textContent=text;
+    }
+    async function loadHatchStatus(){
+      try{
+        const {response,data}=await api('/api/hatch-status',{method:'GET'});
+        if(response.ok&&data.code===200)renderHatchStatus(data.data);
+        else renderHatchStatus(null);
+      }catch(e){
+        renderHatchStatus(null);
+      }
+    }
     async function sendHatch(action){
       const buttons=[$('open-btn'),$('close-btn')];
       buttons.forEach(btn=>btn.disabled=true);
@@ -260,6 +305,8 @@
           setState('Busy');
         }else if(data.code===200){
           message(controlMsg,`Hatch ${action} request sent.`, 'ok');
+          renderHatchStatus(action==='open'?'open':'closed');
+          setTimeout(loadHatchStatus,1500);
           setState('Ready','ok');
         }else{
           message(controlMsg,data.msg||`Hatch ${action} failed.`, 'err');
