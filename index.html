@@ -183,6 +183,7 @@
     const controlMsg=$('control-msg');
     let sessionExpiresAt=0;
     let sessionTimer=null;
+    let hatchStatusTimer=null;
 
     function setState(text,type=''){
       $('state').textContent=text;
@@ -194,6 +195,7 @@
     }
     function showLogin(text=''){
       stopSessionTimer();
+      stopHatchStatusPolling();
       loginView.classList.remove('hidden');
       controlView.classList.add('hidden');
       setState('Login required');
@@ -205,7 +207,7 @@
       $('session-user').textContent=session&&session.user?`Logged in as ${session.user}`:'Authenticated';
       startSessionTimer(session);
       setState('Ready','ok');
-      loadHatchStatus();
+      startHatchStatusPolling();
     }
     function stopSessionTimer(){
       if(sessionTimer){clearInterval(sessionTimer);sessionTimer=null;}
@@ -292,6 +294,14 @@
       }catch(e){
         renderHatchStatus(null);
       }
+    }
+    function startHatchStatusPolling(){
+      stopHatchStatusPolling();
+      loadHatchStatus();
+      hatchStatusTimer=setInterval(loadHatchStatus,1000);
+    }
+    function stopHatchStatusPolling(){
+      if(hatchStatusTimer){clearInterval(hatchStatusTimer);hatchStatusTimer=null;}
     }
     async function sendHatch(action){
       const buttons=[$('open-btn'),$('close-btn')];
