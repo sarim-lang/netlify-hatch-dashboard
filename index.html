@@ -120,8 +120,6 @@
       </section>
       <section class="section">
         <form id="login-form">
-          <label for="api">Backend API</label>
-          <input id="api" autocomplete="url" placeholder="https://your-backend.example.com">
           <label for="username">Username</label>
           <input id="username" autocomplete="username" placeholder="admin">
           <label for="password">Password</label>
@@ -155,7 +153,7 @@
   <script>
     const params=new URLSearchParams(location.search);
     const configured=(window.APP_CONFIG&&window.APP_CONFIG.API_BASE)||'';
-    let API=(params.get('api')||configured||localStorage.getItem('hatchApiBase')||location.origin).replace(/\/$/,'');
+    let API=(params.get('api')||configured||location.origin).replace(/\/$/,'');
     let token=sessionStorage.getItem('hatchToken')||'';
 
     const $=id=>document.getElementById(id);
@@ -165,8 +163,6 @@
     const controlMsg=$('control-msg');
     let sessionExpiresAt=0;
     let sessionTimer=null;
-
-    $('api').value=API;
 
     function setState(text,type=''){
       $('state').textContent=text;
@@ -279,8 +275,6 @@
 
     $('login-form').addEventListener('submit',async e=>{
       e.preventDefault();
-      API=$('api').value.trim().replace(/\/$/,'')||API;
-      localStorage.setItem('hatchApiBase',API);
       $('login-btn').disabled=true;
       $('login-btn').textContent='Logging in...';
       setState('Connecting...');
