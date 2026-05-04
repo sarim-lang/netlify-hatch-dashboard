@@ -108,6 +108,7 @@
     .hatch-state strong{font-size:16px}
     .hatch-state.open strong{color:var(--green)}
     .hatch-state.closed strong{color:var(--red)}
+    .hatch-state.moving strong{color:var(--yellow)}
     .hatch-state.unknown strong{color:var(--yellow)}
     .linkbtn{height:34px;padding:0 12px;font-size:12px;background:transparent}
     .message{min-height:20px;margin-top:12px;font-size:13px;color:var(--muted)}
@@ -278,8 +279,10 @@
       let text='Unknown', cls='unknown';
       if(normalized===1||normalized===true||normalized==='open'||normalized==='opened'){
         text='Open';cls='open';
-      }else if(normalized===0||normalized===2||normalized===false||normalized==='closed'||normalized==='close'){
+      }else if(normalized===0||normalized===false||normalized==='closed'||normalized==='close'){
         text='Closed';cls='closed';
+      }else if(normalized===2||normalized==='opening'||normalized==='closing'||normalized==='opening/closing'){
+        text='Opening/Closing';cls='moving';
       }else if(value!==undefined&&value!==null){
         text=String(value);
       }
