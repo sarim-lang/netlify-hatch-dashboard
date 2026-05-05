@@ -1,364 +1,520 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Hatch Control</title>
-  <style>
-    :root{
-      color-scheme:light;
-      --bg:#f5f4f2;
-      --panel:#ffffff;
-      --panel2:#f2f2f1;
-      --line:#e5e1dc;
-      --text:#171717;
-      --muted:#6d6a66;
-      --red:#d9001b;
-      --red2:#990014;
-      --green:#15803d;
-      --yellow:#b7791f;
-      --shadow:0 24px 70px rgba(28,22,20,.16);
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#d9001b">
+<title>SpeedyBot Hatch</title>
+<script>
+(function(){
+  try{
+    var p=new URLSearchParams(location.search);
+    var override=p.get('view');
+    if(override==='desktop'||override==='mobile')localStorage.setItem('viewPref',override);
+    var pref=localStorage.getItem('viewPref');
+    var isMobile;
+    if(pref==='mobile')isMobile=true;
+    else if(pref==='desktop')isMobile=false;
+    else{
+      var uaMobile=(navigator.userAgentData&&navigator.userAgentData.mobile===true)
+        ||/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent||'');
+      var small=window.matchMedia('(max-width: 820px)').matches;
+      isMobile=uaMobile||small;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      min-height:100vh;
-      font-family:Inter,Segoe UI,Arial,sans-serif;
-      background:
-        linear-gradient(180deg,rgba(217,0,27,.08),transparent 42%),
-        radial-gradient(circle at 16% 18%,rgba(217,0,27,.1),transparent 28%),
-        var(--bg);
-      color:var(--text);
-      display:grid;
-      place-items:center;
-      padding:20px;
-    }
-    .shell{width:min(460px,100%)}
-    .brand{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-    .brand h1{font-size:24px;letter-spacing:-.02em;margin:0;color:var(--red);font-weight:900;font-style:italic}
-    .status{
-      display:inline-flex;
-      align-items:center;
-      gap:7px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      padding:6px 10px;
-      color:var(--muted);
-      font-size:12px;
-      background:rgba(255,255,255,.82);
-    }
-    .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow)}
-    .dot.ok{background:var(--green)}
-    .dot.err{background:var(--red)}
-    .card{
-      background:var(--panel);
-      border:1px solid var(--line);
-      border-radius:18px;
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-    .section{padding:22px}
-    .section + .section{border-top:1px solid var(--line)}
-    .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
-    .title{font-size:26px;line-height:1.1;margin:0 0 8px}
-    .copy{color:var(--muted);font-size:14px;line-height:1.55;margin:0}
-    label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px}
-    input{
-      width:100%;
-      height:42px;
-      border:1px solid var(--line);
-      border-radius:6px;
-      background:var(--panel2);
-      color:var(--text);
-      padding:0 12px;
-      font-size:14px;
-      outline:none;
-    }
-    input:focus{border-color:rgba(217,0,27,.58);box-shadow:0 0 0 4px rgba(217,0,27,.1)}
-    button{
-      height:46px;
-      border:1px solid var(--line);
-      border-radius:6px;
-      background:var(--panel2);
-      color:var(--text);
-      font-weight:700;
-      cursor:pointer;
-      transition:transform .12s ease,border-color .12s ease,background .12s ease;
-    }
-    button:hover:not(:disabled){transform:translateY(-1px);border-color:rgba(217,0,27,.42)}
-    button:disabled{opacity:.55;cursor:not-allowed}
-    .primary{width:100%;margin-top:16px;border-color:var(--red);background:var(--red);color:#fff}
-    .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .open{border-color:var(--red);background:var(--red);color:#fff}
-    .close{border-color:rgba(217,0,27,.28);background:#fff;color:var(--red)}
-    .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
-    .user{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .hatch-state{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background:#faf8f6;
-      padding:12px;
-      margin-bottom:14px;
-    }
-    .hatch-state span:first-child{font-size:12px;color:var(--muted)}
-    .hatch-state strong{font-size:16px}
-    .hatch-state.open strong{color:var(--red)}
-    .hatch-state.closed strong{color:var(--muted)}
-    .hatch-state.moving strong{color:var(--yellow)}
-    .hatch-state.unknown strong{color:var(--yellow)}
-    .linkbtn{height:34px;padding:0 12px;font-size:12px;background:#fff;color:var(--red);border-color:rgba(217,0,27,.28)}
-    .message{min-height:20px;margin-top:12px;font-size:13px;color:var(--muted)}
-    .message.ok{color:var(--green)}
-    .message.err{color:var(--red)}
-    .message.warn{color:var(--yellow)}
-    .hidden{display:none}
-    @media (max-width:420px){
-      .controls{grid-template-columns:1fr}
-      .title{font-size:23px}
-    }
-  </style>
+    if(!isMobile)location.replace('/'+location.search+location.hash);
+  }catch(e){}
+})();
+</script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f5f4f2;
+  --panel:#ffffff;
+  --panel2:#f2f2f1;
+  --line:#e5e1dc;
+  --text:#171717;
+  --muted:#6d6a66;
+  --red:#d9001b;
+  --red2:#990014;
+  --green:#15803d;
+  --yellow:#b7791f;
+  --shadow:0 14px 40px rgba(28,22,20,.12);
+  --shadow-sm:0 4px 14px rgba(28,22,20,.06);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --safe-top:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{
+  font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;
+  background:
+    linear-gradient(180deg,rgba(217,0,27,.07),transparent 38%),
+    radial-gradient(circle at 14% 14%,rgba(217,0,27,.09),transparent 30%),
+    var(--bg);
+  color:var(--text);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  padding:calc(var(--safe-top) + 16px) 14px calc(var(--safe-bottom) + 24px);
+}
+
+.shell{width:min(460px,100%);margin:0 auto}
+
+/* ── BRAND ROW ──────────────────────────────────────────── */
+.brand{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;gap:10px;
+}
+.brand-l{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,var(--red),var(--red2));
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;box-shadow:0 4px 12px rgba(217,0,27,.3);
+}
+.brand-name{font-size:18px;font-weight:900;font-style:italic;color:var(--red);letter-spacing:-.01em;line-height:1}
+.brand-sub{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.live{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:999px;
+  padding:6px 11px;background:rgba(255,255,255,.85);
+  font-size:12px;color:var(--muted);font-weight:500;
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--yellow);transition:background .2s}
+.live-dot.ok{background:var(--green);box-shadow:0 0 0 4px rgba(21,128,61,.12)}
+.live-dot.err{background:var(--red);box-shadow:0 0 0 4px rgba(217,0,27,.12)}
+
+/* ── CARD ───────────────────────────────────────────────── */
+.card{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:18px;box-shadow:var(--shadow);overflow:hidden;
+}
+.section{padding:20px}
+.section + .section{border-top:1px solid var(--line)}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px;font-weight:600}
+.title{font-size:24px;line-height:1.2;margin:0 0 8px;font-weight:800}
+.copy{color:var(--muted);font-size:14px;line-height:1.55;margin:0}
+
+/* ── FORM ───────────────────────────────────────────────── */
+label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px;font-weight:500}
+input{
+  width:100%;height:44px;
+  border:1px solid var(--line);border-radius:8px;
+  background:var(--panel2);color:var(--text);
+  padding:0 12px;font-size:15px;outline:none;font-family:inherit;
+  transition:.15s;
+}
+input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 4px rgba(217,0,27,.1);background:#fff}
+
+button{
+  height:48px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel2);color:var(--text);
+  font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;
+  transition:.15s;
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:active:not(:disabled){transform:scale(.98)}
+.primary{width:100%;margin-top:16px;border-color:var(--red);background:var(--red);color:#fff}
+.primary:hover:not(:disabled){background:var(--red2);border-color:var(--red2)}
+
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.open{border-color:var(--red);background:var(--red);color:#fff}
+.open:hover:not(:disabled){background:var(--red2);border-color:var(--red2)}
+.close{border-color:rgba(217,0,27,.32);background:#fff;color:var(--red)}
+.close:hover:not(:disabled){background:rgba(217,0,27,.06)}
+
+/* ── SESSION BAR ────────────────────────────────────────── */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.user{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linkbtn{
+  height:36px;padding:0 12px;font-size:12px;
+  background:#fff;color:var(--red);border-color:rgba(217,0,27,.3);
+  border-radius:8px;
+}
+.linkbtn:hover{background:rgba(217,0,27,.05)}
+
+/* ── HATCH STATE ROW ────────────────────────────────────── */
+.hatch-state{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid var(--line);border-radius:12px;
+  background:#faf8f6;padding:14px;margin-bottom:14px;
+  transition:.25s;
+}
+.hatch-state-l{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hatch-state-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.hatch-state-val{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px;line-height:1}
+.hatch-state.open{border-color:rgba(21,128,61,.35);background:rgba(21,128,61,.05)}
+.hatch-state.open .hatch-state-val{color:var(--green)}
+.hatch-state.closed{border-color:rgba(217,0,27,.25);background:rgba(217,0,27,.04)}
+.hatch-state.closed .hatch-state-val{color:var(--red)}
+.hatch-state.moving{border-color:rgba(183,121,31,.35);background:rgba(183,121,31,.06)}
+.hatch-state.moving .hatch-state-val{color:var(--yellow)}
+.hatch-state.unknown .hatch-state-val{color:var(--muted)}
+.hico{font-size:22px;display:inline-flex}
+.hico.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── ROBOT STATUS GRID ──────────────────────────────────── */
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat{
+  border:1px solid var(--line);border-radius:12px;
+  background:var(--panel2);padding:12px 14px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-weight:600}
+.stat-val{font-size:16px;font-weight:800;color:var(--text);line-height:1.1;display:flex;align-items:center;gap:6px}
+.stat-sub{font-size:11px;color:var(--muted)}
+.stat-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.stat-dot.ok{background:var(--green)}
+.stat-dot.warn{background:var(--yellow)}
+.stat-dot.err{background:var(--red)}
+
+/* Battery bar */
+.batt-track{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.batt-fill{height:100%;width:0%;background:var(--green);border-radius:3px;transition:width .5s,background .3s}
+.batt-fill.warn{background:var(--yellow)}
+.batt-fill.crit{background:var(--red)}
+
+/* ── MESSAGE ────────────────────────────────────────────── */
+.message{min-height:20px;margin-top:12px;font-size:13px;color:var(--muted)}
+.message.ok{color:var(--green)}
+.message.err{color:var(--red)}
+.message.warn{color:var(--yellow)}
+
+.hidden{display:none}
+
+@media (max-width:380px){
+  .controls{grid-template-columns:1fr}
+  .title{font-size:21px}
+  .status-grid{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
-  <main class="shell">
-    <div class="brand">
-      <h1>SpeedyBot Hatch</h1>
-      <div class="status"><span class="dot" id="dot"></span><span id="state">Disconnected</span></div>
-    </div>
 
-    <div class="card" id="login-view">
-      <section class="section">
-        <div class="eyebrow">Authenticated Control</div>
-        <h2 class="title">Login to control the hatch</h2>
-        <p class="copy">Welcome to SpeedyBot Hatch. Log in and open the hatch to grab your special gift.</p>
-      </section>
-      <section class="section">
-        <form id="login-form">
-          <label for="username">Username</label>
-          <input id="username" autocomplete="username" placeholder="admin">
-          <label for="password">Password</label>
-          <input id="password" type="password" autocomplete="current-password">
-          <button class="primary" id="login-btn" type="submit">Login</button>
-          <div class="message" id="login-msg"></div>
-        </form>
-      </section>
-    </div>
+<main class="shell">
 
-    <div class="card hidden" id="control-view">
-      <section class="section">
-        <div class="bar">
-          <div>
-            <div class="eyebrow">Hatch Control</div>
-            <div class="user" id="session-user">Authenticated</div>
-            <div class="user" id="session-timer">Session: --s</div>
+  <div class="brand">
+    <div class="brand-l">
+      <div class="brand-mark">🤖</div>
+      <div>
+        <div class="brand-name">SpeedyBot</div>
+        <div class="brand-sub">Hatch Control</div>
+      </div>
+    </div>
+    <div class="live"><span class="live-dot" id="dot"></span><span id="state">Disconnected</span></div>
+  </div>
+
+  <!-- LOGIN VIEW -->
+  <div class="card" id="login-view">
+    <section class="section">
+      <div class="eyebrow">Authenticated Control</div>
+      <h2 class="title">Login to control the hatch</h2>
+      <p class="copy">Welcome to SpeedyBot Hatch. Log in and open the hatch to grab your special gift.</p>
+    </section>
+    <section class="section">
+      <form id="login-form">
+        <label for="username">Username</label>
+        <input id="username" autocomplete="username" placeholder="admin">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password">
+        <button class="primary" id="login-btn" type="submit">Login</button>
+        <div class="message" id="login-msg"></div>
+      </form>
+    </section>
+  </div>
+
+  <!-- CONTROL VIEW -->
+  <div class="card hidden" id="control-view">
+    <section class="section">
+      <div class="bar">
+        <div>
+          <div class="eyebrow">Hatch Control</div>
+          <div class="user" id="session-user">Authenticated</div>
+          <div class="user" id="session-timer">Session: --s</div>
+        </div>
+        <button class="linkbtn" id="logout-btn" type="button">Logout</button>
+      </div>
+
+      <!-- Robot status -->
+      <div class="status-grid">
+        <div class="stat">
+          <div class="stat-lbl">Robot State</div>
+          <div class="stat-val"><span class="stat-dot" id="robot-dot"></span><span id="robot-state">—</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-lbl">Battery</div>
+          <div class="stat-val"><span id="batt-pct">—</span></div>
+          <div class="batt-track"><div class="batt-fill" id="batt-fill"></div></div>
+          <div class="stat-sub" id="batt-sub">—</div>
+        </div>
+      </div>
+
+      <!-- Hatch state -->
+      <div class="hatch-state unknown" id="hatch-state">
+        <div class="hatch-state-l">
+          <div class="hatch-state-lbl">Current Hatch Status</div>
+          <div class="hatch-state-val">
+            <span class="hico" id="hico">❓</span>
+            <span id="hatch-status">Checking...</span>
           </div>
-          <button class="linkbtn" id="logout-btn" type="button">Logout</button>
         </div>
-        <div class="hatch-state unknown" id="hatch-state">
-          <span>Current Hatch Status</span>
-          <strong id="hatch-status">Checking...</strong>
-        </div>
-        <div class="controls">
-          <button class="open" id="open-btn" type="button">Open Hatch</button>
-          <button class="close" id="close-btn" type="button">Close Hatch</button>
-        </div>
-        <div class="message" id="control-msg"></div>
-      </section>
-    </div>
-  </main>
+      </div>
 
-  <script src="/config.js"></script>
-  <script>
-    const params=new URLSearchParams(location.search);
-    const configured=(window.APP_CONFIG&&window.APP_CONFIG.API_BASE)||'';
-    let API=(params.get('api')||configured||location.origin).replace(/\/$/,'');
-    let token=sessionStorage.getItem('hatchToken')||'';
+      <!-- Controls -->
+      <div class="controls">
+        <button class="open" id="open-btn" type="button">Open Hatch</button>
+        <button class="close" id="close-btn" type="button">Close Hatch</button>
+      </div>
+      <div class="message" id="control-msg"></div>
+    </section>
+  </div>
 
-    const $=id=>document.getElementById(id);
-    const loginView=$('login-view');
-    const controlView=$('control-view');
-    const loginMsg=$('login-msg');
-    const controlMsg=$('control-msg');
-    let sessionExpiresAt=0;
-    let sessionTimer=null;
-    let hatchStatusTimer=null;
+</main>
 
-    function setState(text,type=''){
-      $('state').textContent=text;
-      $('dot').className='dot'+(type?' '+type:'');
-    }
-    function message(el,text,type=''){
-      el.textContent=text||'';
-      el.className='message'+(type?' '+type:'');
-    }
-    function showLogin(text=''){
-      stopSessionTimer();
-      stopHatchStatusPolling();
-      loginView.classList.remove('hidden');
-      controlView.classList.add('hidden');
-      setState('Login required');
-      message(loginMsg,text,'');
-    }
-    function showControls(session){
-      loginView.classList.add('hidden');
-      controlView.classList.remove('hidden');
-      $('session-user').textContent=session&&session.user?`Logged in as ${session.user}`:'Authenticated';
-      startSessionTimer(session);
-      setState('Ready','ok');
-      startHatchStatusPolling();
-    }
-    function stopSessionTimer(){
-      if(sessionTimer){clearInterval(sessionTimer);sessionTimer=null;}
-      sessionExpiresAt=0;
-    }
-    function startSessionTimer(session){
-      sessionExpiresAt=session&&session.expiresAt?session.expiresAt*1000:Date.now()+30000;
-      if(sessionTimer)clearInterval(sessionTimer);
-      const tick=()=>{
-        const remaining=Math.max(0,Math.ceil((sessionExpiresAt-Date.now())/1000));
-        $('session-timer').textContent=`Session: ${remaining}s`;
-        if(remaining<=0){
-          token='';
-          sessionStorage.removeItem('hatchToken');
-          showLogin('Session expired. Please login again.');
-        }
-      };
-      tick();
-      sessionTimer=setInterval(tick,500);
-    }
-    function authHeaders(){
-      return {'Content-Type':'application/json',Authorization:`Bearer ${token}`};
-    }
-    async function api(path,options={}){
-      const r=await fetch(API+path,{
-        ...options,
-        headers:{...authHeaders(),...(options.headers||{})}
-      });
-      const data=await r.json().catch(()=>({code:r.status,msg:'Invalid response'}));
-      if(r.status===401||data.code===401){
-        token='';
-        sessionStorage.removeItem('hatchToken');
-        showLogin(data.msg||'Login required');
-      }
-      return {response:r,data};
-    }
-    async function login(username,password){
-      const r=await fetch(API+'/api/login',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username,password})
-      });
-      const data=await r.json().catch(()=>({code:r.status,msg:'Invalid response'}));
-      if(data.code===200&&data.data&&data.data.token){
-        token=data.data.token;
-        sessionStorage.setItem('hatchToken',token);
-        showControls(data.data);
-        message(controlMsg,'Ready.','ok');
-        return;
-      }
-      message(loginMsg,data.msg||'Login failed',data.code===423?'warn':'err');
-      setState(data.code===423?'Busy':'Login failed',data.code===423?'':'err');
-    }
-    async function checkSession(){
-      if(!token){showLogin();return;}
-      try{
-        const {response,data}=await api('/api/session',{method:'GET'});
-        if(response.ok&&data.code===200)showControls(data.data);
-      }catch(e){
-        showLogin('Cannot reach backend API');
-        setState('Offline','err');
-      }
-    }
-    function renderHatchStatus(value){
-      const box=$('hatch-state');
-      const label=$('hatch-status');
-      const normalized=typeof value==='string'?value.toLowerCase():value;
-      let text='Unknown', cls='unknown';
-      if(normalized===1||normalized===true||normalized==='open'||normalized==='opened'){
-        text='Open';cls='open';
-      }else if(normalized===0||normalized===false||normalized==='closed'||normalized==='close'){
-        text='Closed';cls='closed';
-      }else if(normalized===2||normalized==='opening'||normalized==='closing'||normalized==='opening/closing'){
-        text='Opening/Closing';cls='moving';
-      }else if(value!==undefined&&value!==null){
-        text=String(value);
-      }
-      box.className=`hatch-state ${cls}`;
-      label.textContent=text;
-    }
-    async function loadHatchStatus(){
-      try{
-        const {response,data}=await api('/api/hatch-status',{method:'GET'});
-        if(response.ok&&data.code===200)renderHatchStatus(data.data);
-        else renderHatchStatus(null);
-      }catch(e){
-        renderHatchStatus(null);
-      }
-    }
-    function startHatchStatusPolling(){
-      stopHatchStatusPolling();
-      loadHatchStatus();
-      hatchStatusTimer=setInterval(loadHatchStatus,1000);
-    }
-    function stopHatchStatusPolling(){
-      if(hatchStatusTimer){clearInterval(hatchStatusTimer);hatchStatusTimer=null;}
-    }
-    async function sendHatch(action){
-      const buttons=[$('open-btn'),$('close-btn')];
-      buttons.forEach(btn=>btn.disabled=true);
-      setState('Sending...');
-      message(controlMsg,`${action==='open'?'Opening':'Closing'} hatch...`);
-      try{
-        const {response,data}=await api(`/api/hatch/${action}`,{method:'PUT'});
-        if(response.status===423||data.code===423){
-          message(controlMsg,data.msg||'Robot is busy. Please wait.','warn');
-          setState('Busy');
-        }else if(data.code===200){
-          message(controlMsg,`Hatch ${action} request sent.`, 'ok');
-          renderHatchStatus(action==='open'?'open':'closed');
-          setTimeout(loadHatchStatus,1500);
-          setState('Ready','ok');
-        }else{
-          message(controlMsg,data.msg||`Hatch ${action} failed.`, 'err');
-          setState('Error','err');
-        }
-      }catch(e){
-        message(controlMsg,'Cannot reach backend API.','err');
-        setState('Offline','err');
-      }finally{
-        buttons.forEach(btn=>btn.disabled=false);
-      }
-    }
+<script src="/config.js"></script>
+<script>
+const params=new URLSearchParams(location.search);
+const configured=(window.APP_CONFIG&&window.APP_CONFIG.API_BASE)||'';
+let API=(params.get('api')||configured||location.origin).replace(/\/$/,'');
+let token=sessionStorage.getItem('hatchToken')||'';
 
-    $('login-form').addEventListener('submit',async e=>{
-      e.preventDefault();
-      $('login-btn').disabled=true;
-      $('login-btn').textContent='Logging in...';
-      setState('Connecting...');
-      message(loginMsg,'');
-      try{await login($('username').value.trim(),$('password').value);}
-      catch(err){
-        message(loginMsg,'Cannot reach backend API.','err');
-        setState('Offline','err');
-      }finally{
-        $('login-btn').disabled=false;
-        $('login-btn').textContent='Login';
-      }
-    });
+const $=id=>document.getElementById(id);
+const loginView=$('login-view');
+const controlView=$('control-view');
+const loginMsg=$('login-msg');
+const controlMsg=$('control-msg');
+let sessionExpiresAt=0;
+let sessionTimer=null;
+let hatchStatusTimer=null;
+let robotStatusTimer=null;
 
-    $('open-btn').addEventListener('click',()=>sendHatch('open'));
-    $('close-btn').addEventListener('click',()=>sendHatch('close'));
-    $('logout-btn').addEventListener('click',async()=>{
-      try{await api('/api/logout',{method:'POST',body:'{}'});}catch(e){}
+const SL={1:'Shutdown',2:'E-Stop',3:'Charging',4:'To Charge',5:'On Task',6:'Idle',7:'Paused',8:'Returning',9:'Full'};
+const SC={1:'err',2:'err',3:'warn',4:'warn',5:'warn',6:'ok',7:'warn',8:'warn',9:'ok'};
+const BL={1:'Charging ⚡',2:'Not Charging',3:'Fully Charged ✓'};
+
+function setState(text,type=''){
+  $('state').textContent=text;
+  $('dot').className='live-dot'+(type?' '+type:'');
+}
+function message(el,text,type=''){
+  el.textContent=text||'';
+  el.className='message'+(type?' '+type:'');
+}
+function showLogin(text=''){
+  stopSessionTimer();
+  stopHatchStatusPolling();
+  stopRobotStatusPolling();
+  loginView.classList.remove('hidden');
+  controlView.classList.add('hidden');
+  setState('Login required');
+  message(loginMsg,text,'');
+}
+function showControls(session){
+  loginView.classList.add('hidden');
+  controlView.classList.remove('hidden');
+  $('session-user').textContent=session&&session.user?`Logged in as ${session.user}`:'Authenticated';
+  startSessionTimer(session);
+  setState('Ready','ok');
+  startHatchStatusPolling();
+  startRobotStatusPolling();
+}
+function stopSessionTimer(){
+  if(sessionTimer){clearInterval(sessionTimer);sessionTimer=null;}
+  sessionExpiresAt=0;
+}
+function startSessionTimer(session){
+  sessionExpiresAt=session&&session.expiresAt?session.expiresAt*1000:Date.now()+30000;
+  if(sessionTimer)clearInterval(sessionTimer);
+  const tick=()=>{
+    const remaining=Math.max(0,Math.ceil((sessionExpiresAt-Date.now())/1000));
+    $('session-timer').textContent=`Session: ${remaining}s`;
+    if(remaining<=0){
       token='';
       sessionStorage.removeItem('hatchToken');
-      showLogin('Logged out.');
-    });
+      showLogin('Session expired. Please login again.');
+    }
+  };
+  tick();
+  sessionTimer=setInterval(tick,500);
+}
+function authHeaders(){
+  return {'Content-Type':'application/json',Authorization:`Bearer ${token}`};
+}
+async function api(path,options={}){
+  const r=await fetch(API+path,{
+    ...options,
+    headers:{...authHeaders(),...(options.headers||{})}
+  });
+  const data=await r.json().catch(()=>({code:r.status,msg:'Invalid response'}));
+  if(r.status===401||data.code===401){
+    token='';
+    sessionStorage.removeItem('hatchToken');
+    showLogin(data.msg||'Login required');
+  }
+  return {response:r,data};
+}
+async function login(username,password){
+  const r=await fetch(API+'/api/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,password})
+  });
+  const data=await r.json().catch(()=>({code:r.status,msg:'Invalid response'}));
+  if(data.code===200&&data.data&&data.data.token){
+    token=data.data.token;
+    sessionStorage.setItem('hatchToken',token);
+    showControls(data.data);
+    message(controlMsg,'Ready.','ok');
+    return;
+  }
+  message(loginMsg,data.msg||'Login failed',data.code===423?'warn':'err');
+  setState(data.code===423?'Busy':'Login failed',data.code===423?'':'err');
+}
+async function checkSession(){
+  if(!token){showLogin();return;}
+  try{
+    const {response,data}=await api('/api/session',{method:'GET'});
+    if(response.ok&&data.code===200)showControls(data.data);
+  }catch(e){
+    showLogin('Cannot reach backend API');
+    setState('Offline','err');
+  }
+}
 
-    checkSession();
-  </script>
+/* ── Hatch status ── */
+function renderHatchStatus(value){
+  const box=$('hatch-state');
+  const label=$('hatch-status');
+  const ico=$('hico');
+  const normalized=typeof value==='string'?value.toLowerCase():value;
+  let text='Unknown',cls='unknown',icon='❓',spinning=false;
+  if(normalized===1||normalized===true||normalized==='open'||normalized==='opened'){
+    text='Open';cls='open';icon='🔓';
+  }else if(normalized===0||normalized===false||normalized==='closed'||normalized==='close'){
+    text='Closed';cls='closed';icon='🔒';
+  }else if(normalized===2||normalized==='opening'||normalized==='closing'||normalized==='opening/closing'){
+    text='Opening / Closing';cls='moving';icon='⟳';spinning=true;
+  }else if(value!==undefined&&value!==null){
+    text=String(value);
+  }
+  box.className=`hatch-state ${cls}`;
+  label.textContent=text;
+  ico.textContent=icon;
+  ico.className='hico'+(spinning?' spin':'');
+}
+async function loadHatchStatus(){
+  try{
+    const {response,data}=await api('/api/hatch-status',{method:'GET'});
+    if(response.ok&&data.code===200)renderHatchStatus(data.data);
+    else renderHatchStatus(null);
+  }catch(e){renderHatchStatus(null);}
+}
+function startHatchStatusPolling(){
+  stopHatchStatusPolling();
+  loadHatchStatus();
+  hatchStatusTimer=setInterval(loadHatchStatus,1000);
+}
+function stopHatchStatusPolling(){
+  if(hatchStatusTimer){clearInterval(hatchStatusTimer);hatchStatusTimer=null;}
+}
+
+/* ── Robot status (state + battery) ── */
+async function loadRobotStatus(){
+  try{
+    const [s,b]=await Promise.all([
+      api('/api/robot-state',{method:'GET'}),
+      api('/api/battery',{method:'GET'})
+    ]);
+    if(s.response.ok&&s.data.code===200){
+      const states=s.data.data||[];
+      renderRobotState(states);
+    }
+    if(b.response.ok&&b.data.code===200){
+      renderBattery(b.data.data||{});
+    }
+  }catch(e){}
+}
+function renderRobotState(states){
+  const label=states.map(c=>SL[c]||c).join(', ')||'—';
+  $('robot-state').textContent=label;
+  let cls='';
+  if(states.includes(6))cls='ok';
+  else if(states.some(c=>[1,2].includes(c)))cls='err';
+  else if(states.length)cls='warn';
+  $('robot-dot').className='stat-dot'+(cls?' '+cls:'');
+}
+function renderBattery(d){
+  const lvl=d.batteryLevel??0;
+  $('batt-pct').textContent=lvl+'%';
+  const f=$('batt-fill');
+  f.style.width=lvl+'%';
+  f.className='batt-fill'+(lvl<20?' crit':lvl<40?' warn':'');
+  $('batt-sub').textContent=BL[d.batteryState]||'—';
+}
+function startRobotStatusPolling(){
+  stopRobotStatusPolling();
+  loadRobotStatus();
+  robotStatusTimer=setInterval(loadRobotStatus,2000);
+}
+function stopRobotStatusPolling(){
+  if(robotStatusTimer){clearInterval(robotStatusTimer);robotStatusTimer=null;}
+}
+
+/* ── Hatch action ── */
+async function sendHatch(action){
+  const buttons=[$('open-btn'),$('close-btn')];
+  buttons.forEach(btn=>btn.disabled=true);
+  setState('Sending...');
+  message(controlMsg,`${action==='open'?'Opening':'Closing'} hatch...`);
+  try{
+    const {response,data}=await api(`/api/hatch/${action}`,{method:'PUT'});
+    if(response.status===423||data.code===423){
+      message(controlMsg,data.msg||'Robot is busy. Please wait.','warn');
+      setState('Busy');
+    }else if(data.code===200){
+      message(controlMsg,`Hatch ${action} request sent.`,'ok');
+      renderHatchStatus(action==='open'?'open':'closed');
+      setTimeout(loadHatchStatus,1500);
+      setState('Ready','ok');
+    }else{
+      message(controlMsg,data.msg||`Hatch ${action} failed.`,'err');
+      setState('Error','err');
+    }
+  }catch(e){
+    message(controlMsg,'Cannot reach backend API.','err');
+    setState('Offline','err');
+  }finally{
+    buttons.forEach(btn=>btn.disabled=false);
+  }
+}
+
+$('login-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  $('login-btn').disabled=true;
+  $('login-btn').textContent='Logging in...';
+  setState('Connecting...');
+  message(loginMsg,'');
+  try{await login($('username').value.trim(),$('password').value);}
+  catch(err){
+    message(loginMsg,'Cannot reach backend API.','err');
+    setState('Offline','err');
+  }finally{
+    $('login-btn').disabled=false;
+    $('login-btn').textContent='Login';
+  }
+});
+
+$('open-btn').addEventListener('click',()=>sendHatch('open'));
+$('close-btn').addEventListener('click',()=>sendHatch('close'));
+$('logout-btn').addEventListener('click',async()=>{
+  try{await api('/api/logout',{method:'POST',body:'{}'});}catch(e){}
+  token='';
+  sessionStorage.removeItem('hatchToken');
+  showLogin('Logged out.');
+});
+
+checkSession();
+</script>
 </body>
 </html>
