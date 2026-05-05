@@ -1,0 +1,15 @@
+SpeedyBot Hatch Red Theme Colors
+
+Main red: #d9001b
+Darker red: #990014
+
+Background: #f5f4f2
+Card / panel: #ffffff
+Secondary panel: #f2f2f1
+Border line: #e5e1dc
+
+Primary text: #171717
+Muted text: #6d6a66
+
+Status green: #15803d
+Status yellow: #b7791f
