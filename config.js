@@ -1,3 +1,3 @@
 window.APP_CONFIG = {
-  API_BASE: "https://alpha-demo-3vn6.onrender.com"
+  API_BASE: "https://render-backend-wvsw.onrender.com"
 };
