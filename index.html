@@ -70,7 +70,11 @@ button:disabled{opacity:.55;cursor:not-allowed}
   letter-spacing:-.08em;
   padding-right:2px;
 }
-.brand-name{font-size:23px;font-weight:1000;font-style:italic;color:var(--red);letter-spacing:-.04em;line-height:1}
+.brand-logo{
+  display:block;
+  width:132px;
+  height:auto;
+}
 .brand-sub{font-size:11px;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;margin-top:4px;font-weight:800}
 .live{
   display:inline-flex;
@@ -449,7 +453,7 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
 }
 @media (min-width:1200px) and (orientation:landscape){
   .brand-mark{width:50px;height:50px;border-radius:15px;font-size:16px}
-  .brand-name{font-size:26px}
+  .brand-logo{width:152px}
   .brand-sub{font-size:12px}
   .live{padding:9px 14px;font-size:13px}
   .login-panel{width:min(560px,100%);padding:38px}
@@ -473,7 +477,7 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
   .app{min-height:calc(100vh - 24px)}
   .brand{margin-bottom:10px}
   .brand-mark{width:40px;height:40px;border-radius:12px}
-  .brand-name{font-size:21px}
+  .brand-logo{width:124px}
   .panel{border-radius:20px}
   .game-main{padding:20px 22px}
   .topbar{margin-bottom:10px}
@@ -522,7 +526,7 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
   .game-main{padding:20px}
 }
 @media (max-width:620px){
-  .brand-name{font-size:20px}
+  .brand-logo{width:118px}
   .live{font-size:11px;padding:7px 9px}
   .game-main{padding:16px}
   .game-header{align-items:flex-start;flex-direction:column}
@@ -542,7 +546,7 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
     <div class="brand-l">
       <div class="brand-mark">sn</div>
       <div>
-        <div class="brand-name">Snoonu</div>
+        <img class="brand-logo" src="images/snoonu-logo.png" alt="Snoonu">
         <div class="brand-sub">Prize Hatch</div>
       </div>
     </div>
@@ -551,7 +555,7 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
 
   <section class="panel" id="login-view">
     <div class="login-panel">
-      <div class="eyebrow">Authenticated Game</div>
+      <div class="eyebrow">Win a prize!</div>
       <h1 class="title">Login to unlock the prize match.</h1>
       <p class="copy">Start the game, match a pair within three tries, and collect your prize from the robot.</p>
       <form class="login-form" id="login-form">
