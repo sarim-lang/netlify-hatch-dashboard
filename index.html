@@ -385,26 +385,32 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
 }
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal{
-  width:min(520px,100%);
+  width:min(620px,100%);
   border:1px solid rgba(212,175,106,.58);
   border-radius:26px;
   background:#fff;
   box-shadow:0 28px 80px rgba(0,0,0,.24);
-  padding:24px;
+  padding:18px 28px 24px;
   text-align:center;
   animation:pop .2s ease-out;
 }
 @keyframes pop{from{transform:scale(.98);opacity:.85}to{transform:scale(1);opacity:1}}
 .prize-img{
   display:block;
-  width:min(220px,62vw);
-  aspect-ratio:1.28/1;
-  object-fit:cover;
-  border-radius:18px;
-  border:1px solid var(--line);
-  box-shadow:0 14px 28px rgba(20,16,14,.1);
-  margin:0 auto 18px;
-  background:#f3f4f6;
+  width:min(360px,76vw);
+  height:min(245px,34vh);
+  object-fit:contain;
+  border-radius:0;
+  border:0;
+  box-shadow:none;
+  margin:0 auto 6px;
+  background:transparent;
+  padding:0;
+}
+.prize-img.lose{
+  width:min(430px,78vw);
+  height:min(300px,40vh);
+  margin-bottom:2px;
 }
 .m-pill{
   display:inline-flex;
@@ -419,20 +425,20 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
   color:#6a4e1b;
   background:linear-gradient(180deg,#fff7e6,#f9e8c7);
   border:1px solid rgba(212,175,106,.55);
-  margin-bottom:14px;
+  margin-bottom:8px;
 }
 .m-title{
   max-width:420px;
-  margin:0 auto 10px;
-  font-size:clamp(24px,3.2vw,32px);
+  margin:0 auto 8px;
+  font-size:clamp(23px,3vw,30px);
   font-weight:1000;
   line-height:1.12;
   letter-spacing:-.035em;
 }
 .m-text{
   max-width:390px;
-  margin:0 auto 20px;
-  font-size:15px;
+  margin:0 auto 18px;
+  font-size:14px;
   color:var(--muted);
   line-height:1.55;
 }
@@ -660,8 +666,8 @@ const GAME={
     {pair_id:'pair_5',image:'images/Scity.png',label:'Snoonu City'},
     {pair_id:'pair_6',image:'images/SLaundry.png',label:'Snoonu Laundry'}
   ],
-  toyImage:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22520%22 height=%22380%22 viewBox=%220 0 520 380%22%3E%3Crect width=%22520%22 height=%22380%22 rx=%2238%22 fill=%22%23fff7e6%22/%3E%3Ccircle cx=%22260%22 cy=%22162%22 r=%2294%22 fill=%22%23d9001b%22/%3E%3Ccircle cx=%22225%22 cy=%22142%22 r=%2212%22 fill=%22white%22/%3E%3Ccircle cx=%22295%22 cy=%22142%22 r=%2212%22 fill=%22white%22/%3E%3Cpath d=%22M220 204 Q260 238 300 204%22 stroke=%22white%22 stroke-width=%2216%22 fill=%22none%22 stroke-linecap=%22round%22/%3E%3Ctext x=%22260%22 y=%22320%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2234%22 font-weight=%22900%22 fill=%22%23121214%22%3ESnoonu Toy%3C/text%3E%3C/svg%3E',
-  bottleImage:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22520%22 height=%22380%22 viewBox=%220 0 520 380%22%3E%3Crect width=%22520%22 height=%22380%22 rx=%2238%22 fill=%22%23eef6ff%22/%3E%3Crect x=%22215%22 y=%2280%22 width=%2290%22 height=%22206%22 rx=%2236%22 fill=%22%23d9001b%22/%3E%3Crect x=%22234%22 y=%2248%22 width=%2252%22 height=%2250%22 rx=%2212%22 fill=%22%239e0015%22/%3E%3Crect x=%22228%22 y=%22148%22 width=%2264%22 height=%2258%22 rx=%2214%22 fill=%22white%22 opacity=%22.95%22/%3E%3Ctext x=%22260%22 y=%22184%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2220%22 font-weight=%22900%22 fill=%22%23d9001b%22%3Esn%3C/text%3E%3Ctext x=%22260%22 y=%22320%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2232%22 font-weight=%22900%22 fill=%22%23121214%22%3EWater Bottle%3C/text%3E%3C/svg%3E'
+  toyImage:'images/ChatGPT Image May 12, 2026, 02_24_08 PM.png',
+  bottleImage:'images/ChatGPT_Image_May_12__2026__03_26_57_PM-removebg-preview.png'
 };
 
 let deck=[];
@@ -990,7 +996,8 @@ function showPrize(didWin){
     ? 'Collect it from the robot now.'
     : "Here's a Snoonu water bottle for your effort. Collect it from the robot now.";
   img.src=didWin?GAME.toyImage:GAME.bottleImage;
-  img.alt=didWin?'Snoonu toy placeholder':'Snoonu water bottle placeholder';
+  img.alt=didWin?'Snoonu toy prize':'Snoonu water bottle placeholder';
+  img.className='prize-img'+(didWin?'':' lose');
   playAgain.disabled=true;
   playAgain.textContent='Next game in 30s';
   $('resultOverlay').classList.remove('hidden');
