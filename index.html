@@ -775,13 +775,13 @@ function renderHatchStatus(value){
   const label=$('hatch-status');
   const ico=$('hico');
   const normalized=typeof value==='string'?value.toLowerCase():value;
-  let text='Unknown',cls='unknown',icon='?',spinning=false;
+  let text='Unknown',cls='unknown',icon='',spinning=false;
   if(normalized===1||normalized===true||normalized==='open'||normalized==='opened'){
-    text='Open';cls='open';icon='Open';
+    text='Open';cls='open';
   }else if(normalized===0||normalized===false||normalized==='closed'||normalized==='close'){
-    text='Closed';cls='closed';icon='Closed';
+    text='Closed';cls='closed';
   }else if(normalized===2||normalized==='opening'||normalized==='closing'||normalized==='opening/closing'){
-    text='Opening / Closing';cls='moving';icon='...';spinning=true;
+    text='Opening / Closing';cls='moving';spinning=true;
   }else if(value!==undefined&&value!==null){
     text=String(value);
   }
