@@ -643,9 +643,8 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
 
 <script src="/config.js"></script>
 <script>
-const params=new URLSearchParams(location.search);
 const configured=(window.APP_CONFIG&&window.APP_CONFIG.API_BASE)||'';
-let API=(params.get('api')||configured||location.origin).replace(/\/$/,'');
+let API=(configured||location.origin).replace(/\/$/,'');
 let token=sessionStorage.getItem('hatchToken')||'';
 
 const $=id=>document.getElementById(id);

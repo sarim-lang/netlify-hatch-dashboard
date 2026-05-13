@@ -12,12 +12,6 @@ window.APP_CONFIG = {
 };
 ```
 
-For temporary testing, you can override the backend from the URL:
-
-```text
-https://your-site.netlify.app?api=https://your-backend-domain.example.com
-```
-
 ## Backend
 
 Run `proxy (2).py` from the parent folder with dashboard users configured:
