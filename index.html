@@ -412,6 +412,12 @@ input:focus{border-color:rgba(217,0,27,.55);box-shadow:0 0 0 5px rgba(217,0,27,.
   height:min(300px,40vh);
   margin-bottom:2px;
 }
+.prize-img.promo{
+  width:min(500px,84vw);
+  height:min(260px,34vh);
+  margin-bottom:0;
+  transform:translateX(-56px);
+}
 .m-pill{
   display:inline-flex;
   align-items:center;
@@ -658,6 +664,7 @@ const BL={1:'Charging',2:'Not Charging',3:'Fully Charged'};
 
 const GAME={
   maxTries:3,
+  prizeCountsKey:'snoonuPrizeCounts',
   deckPairs:[
     {pair_id:'pair_1',image:'images/Grocery.png',label:'Grocery'},
     {pair_id:'pair_2',image:'images/Marketplace.png',label:'Marketplace'},
@@ -667,7 +674,39 @@ const GAME={
     {pair_id:'pair_6',image:'images/SLaundry.png',label:'Snoonu Laundry'}
   ],
   toyImage:'images/ChatGPT Image May 12, 2026, 02_24_08 PM.png',
-  bottleImage:'images/ChatGPT_Image_May_12__2026__03_26_57_PM-removebg-preview.png'
+  bottleImage:'images/ChatGPT_Image_May_12__2026__03_26_57_PM-removebg-preview.png',
+  prizes:[
+    {
+      key:'toy',
+      label:'Snoonu toy',
+      pill:'Prize Unlocked',
+      title:'You won a Snoonu toy!',
+      text:'Collect it from the robot now.',
+      image:'images/ChatGPT Image May 12, 2026, 02_24_08 PM.png',
+      cap:50,
+      weight:25
+    },
+    {
+      key:'keychain',
+      label:'Snoonu keychain',
+      pill:'Prize Unlocked',
+      title:'You won a Snoonu keychain!',
+      text:'Collect it from the robot now.',
+      image:'images/keychain.png',
+      cap:50,
+      weight:25
+    },
+    {
+      key:'promo',
+      label:'free delivery promo code',
+      pill:'Prize Unlocked',
+      title:'You won a Promo Code!',
+      text:'Your promo code prize is ready. Collect it from the robot now.',
+      image:'images/voucher.png',
+      cap:100,
+      weight:50
+    }
+  ]
 };
 
 let deck=[];
@@ -831,6 +870,37 @@ function renderBattery(d){
   f.className='batt-fill'+(lvl<20?' crit':lvl<40?' warn':'');
   $('batt-sub').textContent=BL[d.batteryState]||'--';
 }
+function getPrizeCounts(){
+  try{
+    return JSON.parse(localStorage.getItem(GAME.prizeCountsKey)||'{}')||{};
+  }catch(e){
+    return {};
+  }
+}
+function savePrizeCounts(counts){
+  localStorage.setItem(GAME.prizeCountsKey,JSON.stringify(counts));
+}
+function getAvailablePrizes(){
+  const counts=getPrizeCounts();
+  return GAME.prizes.filter(prize=>(counts[prize.key]||0)<prize.cap);
+}
+function selectWeightedPrize(){
+  const available=getAvailablePrizes();
+  if(!available.length)return null;
+  const total=available.reduce((sum,prize)=>sum+prize.weight,0);
+  let draw=Math.random()*total;
+  for(const prize of available){
+    draw-=prize.weight;
+    if(draw<=0)return prize;
+  }
+  return available[available.length-1];
+}
+function recordPrizeAward(prize){
+  if(!prize)return;
+  const counts=getPrizeCounts();
+  counts[prize.key]=(counts[prize.key]||0)+1;
+  savePrizeCounts(counts);
+}
 function startRobotStatusPolling(){
   stopRobotStatusPolling();
   loadRobotStatus();
@@ -976,9 +1046,13 @@ async function endGame(didWin){
   gameEnded=true;
   canFlip=false;
   updateTryUI();
-  showPrize(didWin);
+  const prize=didWin?selectWeightedPrize():null;
+  showPrize(didWin,prize);
   const opened=await sendHatch('open');
-  if(opened)startAutoCloseCountdown();
+  if(opened){
+    if(prize)recordPrizeAward(prize);
+    startAutoCloseCountdown();
+  }
   else{
     const playAgain=$('play-again-btn');
     if(playAgain){
@@ -987,17 +1061,17 @@ async function endGame(didWin){
     }
   }
 }
-function showPrize(didWin){
+function showPrize(didWin,prize){
   const img=$('resultImage');
   const playAgain=$('play-again-btn');
-  $('resultPill').textContent=didWin?'Prize Unlocked':'Thanks For Playing';
-  $('resultTitle').textContent=didWin?'You won a Snoonu toy!':'Nice try!';
-  $('resultText').textContent=didWin
-    ? 'Collect it from the robot now.'
+  $('resultPill').textContent=prize?prize.pill:'Thanks For Playing';
+  $('resultTitle').textContent=prize?prize.title:'Nice try!';
+  $('resultText').textContent=prize
+    ? prize.text
     : "Here's a Snoonu water bottle for your effort. Collect it from the robot now.";
-  img.src=didWin?GAME.toyImage:GAME.bottleImage;
-  img.alt=didWin?'Snoonu toy prize':'Snoonu water bottle placeholder';
-  img.className='prize-img'+(didWin?'':' lose');
+  img.src=prize?prize.image:GAME.bottleImage;
+  img.alt=prize?`${prize.label} prize`:'Snoonu water bottle placeholder';
+  img.className='prize-img'+(prize&&prize.key==='promo'?' promo':prize?'':' lose');
   playAgain.disabled=true;
   playAgain.textContent='Next game in 30s';
   $('resultOverlay').classList.remove('hidden');
