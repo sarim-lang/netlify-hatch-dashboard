@@ -660,6 +660,7 @@ let robotStatusTimer=null;
 const SL={1:'Shutdown',2:'E-Stop',3:'Charging',4:'To Charge',5:'On Task',6:'Idle',7:'Paused',8:'Returning',9:'Full'};
 const SC={1:'err',2:'err',3:'warn',4:'warn',5:'warn',6:'ok',7:'warn',8:'warn',9:'ok'};
 const BL={1:'Charging',2:'Not Charging',3:'Fully Charged'};
+const HATCH_AUTO_CLOSE_SECONDS=15;
 
 const GAME={
   maxTries:3,
@@ -1072,7 +1073,7 @@ function showPrize(didWin,prize){
   img.alt=prize?`${prize.label} prize`:'Snoonu water bottle placeholder';
   img.className='prize-img'+(prize&&prize.key==='promo'?' promo':prize?'':' lose');
   playAgain.disabled=true;
-  playAgain.textContent='Next game in 30s';
+  playAgain.textContent=`Next game in ${HATCH_AUTO_CLOSE_SECONDS}s`;
   $('resultOverlay').classList.remove('hidden');
   setState('Prize ready','ok');
 }
@@ -1098,7 +1099,7 @@ function updateAutoCloseUI(){
 }
 function startAutoCloseCountdown(){
   clearAutoCloseCountdown();
-  autoCloseRemaining=30;
+  autoCloseRemaining=HATCH_AUTO_CLOSE_SECONDS;
   updateAutoCloseUI();
   autoCloseTimer=setInterval(async()=>{
     autoCloseRemaining-=1;
